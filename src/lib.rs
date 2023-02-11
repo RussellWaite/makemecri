@@ -16,7 +16,7 @@ use runtime::v1::{
     VersionRequest, CreateContainerRequest,
 };
 
-use crate::runtime::v1::{ListContainersRequest, StartContainerRequest, RemoveContainerRequest, RemovePodSandboxRequest};
+use crate::runtime::v1::{ListContainersRequest, StartContainerRequest, RemoveContainerRequest, RemovePodSandboxRequest, Mount};
 
 pub async fn run_container() -> Result<(), Box<dyn std::error::Error>> {
     // magic endpoint creation acquired from
@@ -164,11 +164,31 @@ async fn create_container(
                     image: image_we_want, 
                     annotations: HashMap::new() 
                 }), 
-                command: vec!["nc".into()], 
-                args: vec!["-l".into(), "-p".into(), "9009".into(), "-w".into(), "20".into()], 
-                working_dir: "".into(), 
+                command: vec!["/bin/sh".to_string()], 
+                args: vec!["/input/something.sh".to_string()], 
+                working_dir: "/".into(), 
                 envs: vec![], 
-                mounts: vec![], 
+                mounts: vec![
+                    Mount {
+                        container_path: "/output/".into(),
+                        host_path: "/tmp/output/".into(),
+                        readonly: false,
+                        selinux_relabel: false,
+                        /* enum MountPropagation {
+                            PROPAGATION_PRIVATE = 0;
+                            PROPAGATION_HOST_TO_CONTAINER = 1;
+                            PROPAGATION_BIDIRECTIONAL = 2;
+                        }*/
+                        propagation: 0
+                    },
+                    Mount {
+                        container_path: "/input/".into(),
+                        host_path: "/tmp/input/".into(),
+                        readonly: true,
+                        selinux_relabel: false,
+                        propagation: 0
+                    }
+                ], 
                 devices: vec![], 
                 labels: HashMap::new(), 
                 annotations: HashMap::new(), 
@@ -190,7 +210,7 @@ async fn create_container(
     let start_container_response = client.start_container(StartContainerRequest { container_id: container_id.clone() }).await?; 
     println!("START CONTAINER: {start_container_response:?}");
 
-    std::thread::sleep(std::time::Duration::from_secs(20));
+    //std::thread::sleep(std::time::Duration::from_secs(20));
 
     let _remove_container_response = client
         .remove_container(RemoveContainerRequest { container_id: container_id.clone() })
